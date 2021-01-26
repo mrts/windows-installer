@@ -1,6 +1,7 @@
 using Microsoft.Deployment.WindowsInstaller;
 using Microsoft.Win32;
 using Newtonsoft.Json.Linq;
+using System;
 
 namespace FirefoxAction
 {
@@ -9,38 +10,54 @@ namespace FirefoxAction
         [CustomAction]
         public static ActionResult ExtensionSettingsInstall(Session session)
         {
-            session.Log("Begin ExtensionSettingsInstall " + session["EXTENSIONSETTINGS_UUID"]);
-            using (RegistryKey firefox = Utils.FirefoxKey())
+            try
             {
-                string[] value = (string[])firefox.GetValue("ExtensionSettings", new string[] { "{}" });
-                JObject json = JObject.Parse(string.Join("\n", value));
-                json[session["EXTENSIONSETTINGS_UUID"]] = new JObject
+                session.Log("Begin ExtensionSettingsInstall " + session["EXTENSIONSETTINGS_UUID"]);
+                using (RegistryKey firefox = Utils.FirefoxKey())
                 {
-                    ["installation_mode"] = "normal_installed",
-                    ["install_url"] = session["EXTENSIONSETTINGS_URL"]
-                };
-                firefox.SetValue("ExtensionSettings", json.ToString().Split('\n'));
-                return ActionResult.Success;
+                    string[] value = (string[])firefox.GetValue("ExtensionSettings", new string[] { "{}" });
+                    JObject json = JObject.Parse(string.Join("\n", value));
+                    json[session["EXTENSIONSETTINGS_UUID"]] = new JObject
+                    {
+                        ["installation_mode"] = "normal_installed",
+                        ["install_url"] = session["EXTENSIONSETTINGS_URL"]
+                    };
+                    firefox.SetValue("ExtensionSettings", json.ToString().Split('\n'));
+                    return ActionResult.Success;
+                }
+            }
+            catch (Exception e)
+            {
+                session.Log("ExtensionSettingsInstall " + session["EXTENSIONSETTINGS_UUID"] + " failed: " + e.Message);
+                return ActionResult.Failure;
             }
         }
 
         [CustomAction]
         public static ActionResult ExtensionSettingsRemove(Session session)
         {
-            session.Log("Begin ExtensionSettingsRemove " + session["EXTENSIONSETTINGS_UUID"]);
-            using (RegistryKey firefox = Utils.FirefoxKey())
+            try
             {
-                string[] value = (string[])firefox.GetValue("ExtensionSettings");
-                if (value != null)
+                session.Log("Begin ExtensionSettingsRemove " + session["EXTENSIONSETTINGS_UUID"]);
+                using (RegistryKey firefox = Utils.FirefoxKey())
                 {
-                    JObject json = JObject.Parse(string.Join("\n", value));
-                    json[session["EXTENSIONSETTINGS_UUID"]] = new JObject
+                    string[] value = (string[])firefox.GetValue("ExtensionSettings");
+                    if (value != null)
                     {
-                        ["installation_mode"] = "blocked"
-                    };
-                    firefox.SetValue("ExtensionSettings", json.ToString().Split('\n'));
+                        JObject json = JObject.Parse(string.Join("\n", value));
+                        json[session["EXTENSIONSETTINGS_UUID"]] = new JObject
+                        {
+                            ["installation_mode"] = "blocked"
+                        };
+                        firefox.SetValue("ExtensionSettings", json.ToString().Split('\n'));
+                    }
+                    return ActionResult.Success;
                 }
-                return ActionResult.Success;
+            }
+            catch (Exception e)
+            {
+                session.Log("ExtensionSettingsRemove " + session["EXTENSIONSETTINGS_UUID"] + " failed: " + e.Message);
+                return ActionResult.Failure;
             }
         }
     }
